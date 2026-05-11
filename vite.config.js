@@ -6,4 +6,3 @@ export default defineConfig({
   plugins: [react()],
     base: './board-games/', // Cambia 'board-games' por el nombre exacto de tu repositorio
 })
-})
