@@ -5,16 +5,21 @@ import GameEdit from './GameEdit';
 import RatingModal from './RatingModal';
 
 const DEFAULT_FILTERS = {
-  search:    '',
-  sortBy:    'nombre',
-  tipo:      '',
-  categoria: '',
-  portable:  '',
-  jugadores: '',
-  tiempoMax: 180,
-  edadMax:   18,
-  bggMin:    0,
-  propioMin: 0,
+  search:     '',
+  sortBy:     'nombre',
+  tipo:       '',
+  categorias: [],
+  portable:   '',
+  jugMin:     1,
+  jugMax:     16,
+  tiempoMin:  5,
+  tiempoMax:  180,
+  edadMin:    4,
+  edadMax:    18,
+  bggMin:     0,
+  bggMax:     10,
+  propioMin:  0,
+  propioMax:  10,
 };
 
 export default function GameList({ games, ratings, updateGame, setGameRatings, getRating, getAverage }) {
@@ -23,7 +28,6 @@ export default function GameList({ games, ratings, updateGame, setGameRatings, g
   const [ratingGame, setRatingGame]   = useState(null);
 
   const filtered = useMemo(() => {
-    // Inline average helper to avoid stale closure issues
     const avg = (gameId) => {
       const r = ratings[gameId] || { p1: null, p2: null };
       const vals = [r.p1, r.p2].filter(v => v !== null && v !== undefined);
@@ -33,42 +37,58 @@ export default function GameList({ games, ratings, updateGame, setGameRatings, g
 
     let result = [...games];
 
+    // Text search
     if (filters.search) {
       const q = filters.search.toLowerCase();
       result = result.filter(g => g.nombre.toLowerCase().includes(q));
     }
+
+    // Tipo
     if (filters.tipo) {
       result = result.filter(g => g.tipo === filters.tipo);
     }
-    if (filters.categoria) {
-      result = result.filter(g => g.categoria === filters.categoria);
+
+    // Categorías (multi): juego debe pertenecer a alguna de las seleccionadas
+    if (filters.categorias.length > 0) {
+      result = result.filter(g => filters.categorias.includes(g.categoria));
     }
+
+    // Portable
     if (filters.portable !== '') {
-      const p = filters.portable === 'true';
-      result = result.filter(g => g.portable === p);
+      result = result.filter(g => g.portable === (filters.portable === 'true'));
     }
-    if (filters.jugadores !== '') {
-      const n = parseInt(filters.jugadores, 10);
-      if (!isNaN(n)) {
-        result = result.filter(g => g.jugMin <= n && g.jugMax >= n);
-      }
+
+    // Jugadores: mostrar juegos que soporten algún número dentro del rango elegido
+    if (filters.jugMin > 1 || filters.jugMax < 16) {
+      result = result.filter(g => g.jugMin <= filters.jugMax && g.jugMax >= filters.jugMin);
     }
-    if (filters.tiempoMax < 180) {
-      result = result.filter(g => g.tiempo <= filters.tiempoMax);
+
+    // Duración
+    if (filters.tiempoMin > 5 || filters.tiempoMax < 180) {
+      result = result.filter(g => g.tiempo >= filters.tiempoMin && g.tiempo <= filters.tiempoMax);
     }
-    if (filters.edadMax < 18) {
-      result = result.filter(g => g.edadMin <= filters.edadMax);
+
+    // Edad mínima del juego
+    if (filters.edadMin > 4 || filters.edadMax < 18) {
+      result = result.filter(g => g.edadMin >= filters.edadMin && g.edadMin <= filters.edadMax);
     }
-    if (filters.bggMin > 0) {
-      result = result.filter(g => g.bgg != null && g.bgg >= filters.bggMin);
+
+    // BGG
+    if (filters.bggMin > 0 || filters.bggMax < 10) {
+      result = result.filter(g =>
+        g.bgg != null && g.bgg >= filters.bggMin && g.bgg <= filters.bggMax
+      );
     }
-    if (filters.propioMin > 0) {
+
+    // Nuestro puntaje
+    if (filters.propioMin > 0 || filters.propioMax < 10) {
       result = result.filter(g => {
         const a = avg(g.id);
-        return a !== null && a >= filters.propioMin;
+        return a !== null && a >= filters.propioMin && a <= filters.propioMax;
       });
     }
 
+    // Ordenamiento
     result.sort((a, b) => {
       switch (filters.sortBy) {
         case 'nombre':
